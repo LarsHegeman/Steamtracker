@@ -907,14 +907,14 @@ function addOpdracht(){
   const newOp={id:doc.nextOpId++,naam,desc,leerjaar:opLj||'alle',bonus:false,geblokkeerd:true,fases:[]};doc.opdrachten.push(newOp);doc.studenten.forEach(s=>s.voortgang[newOp.id]=[]);
   document.getElementById('new-op-naam').value='';document.getElementById('new-op-desc').value='';renderOpdrachtenBeheer();updateStats();renderOvOpdrachtTabs();autoSave();showToast('toast-d','Opdracht aangemaakt!');
 }
-function deleteOpdracht(opId){if(!confirm('Opdracht verwijderen?'))return;const doc=currentDocent;doc.opdrachten=doc.opdrachten.filter(o=>o.id!==opId);doc.studenten.forEach(s=>delete s.voortgang[opId]);renderOpdrachtenBeheer();updateStats();renderOvOpdrachtTabs();if(currentOvOpId===opId){currentOvOpId=null;renderOverzicht();}showToast('toast-d','Opdracht verwijderd.');}
+function deleteOpdracht(opId){if(!confirm('Opdracht verwijderen?'))return;const doc=currentDocent;doc.opdrachten=doc.opdrachten.filter(o=>o.id!==opId);doc.studenten.forEach(s=>delete s.voortgang[opId]);renderOpdrachtenBeheer();updateStats();renderOvOpdrachtTabs();if(currentOvOpId===opId){currentOvOpId=null;renderOverzicht();}autoSave();showToast('toast-d','Opdracht verwijderd.');}
 function toggleGeblokkeerd(opId){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);op.geblokkeerd=!op.geblokkeerd;autoSave();renderOpdrachtenBeheer();}
-function faseMoveUp(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);if(fi===0)return;[op.fases[fi-1],op.fases[fi]]=[op.fases[fi],op.fases[fi-1]];doc.studenten.forEach(s=>{const vg=s.voortgang[opId];if(!vg)return;if(vg[fi-1]&&vg[fi])[vg[fi-1],vg[fi]]=[vg[fi],vg[fi-1]];});renderOpdrachtenBeheer();}
-function faseMoveDown(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);if(fi>=op.fases.length-1)return;[op.fases[fi],op.fases[fi+1]]=[op.fases[fi+1],op.fases[fi]];doc.studenten.forEach(s=>{const vg=s.voortgang[opId];if(!vg)return;if(vg[fi]&&vg[fi+1])[vg[fi],vg[fi+1]]=[vg[fi+1],vg[fi]];});renderOpdrachtenBeheer();}
-function addFaseStap(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);const label=document.getElementById(`ns-label-${opId}-${fi}`).value.trim();const desc=document.getElementById(`ns-desc-${opId}-${fi}`).value.trim();const xp=parseInt(document.getElementById(`ns-xp-${opId}-${fi}`).value)||10;if(!label){showToast('toast-d','Vul een stapnaam in.');return;}op.fases[fi].stappen.push({id:doc.nextStapId++,label,desc,xp,bonus:false});doc.studenten.forEach(s=>{if(!s.voortgang[opId])s.voortgang[opId]=[];while(s.voortgang[opId].length<=fi)s.voortgang[opId].push([]);s.voortgang[opId][fi].push(false);});document.getElementById(`ns-label-${opId}-${fi}`).value='';document.getElementById(`ns-desc-${opId}-${fi}`).value='';document.getElementById(`ns-xp-${opId}-${fi}`).value='10';renderOpdrachtenBeheer();showToast('toast-d','Stap toegevoegd!');}
-function addNieuweFase(opId){const doc=currentDocent;const naam=document.getElementById('nf-naam-'+opId).value.trim();if(!naam){showToast('toast-d','Geef de fase een naam.');return;}const op=doc.opdrachten.find(o=>o.id===opId);op.fases.push({naam,bonus:false,stappen:[]});doc.studenten.forEach(s=>{if(!s.voortgang[opId])s.voortgang[opId]=[];s.voortgang[opId].push([]);});document.getElementById('nf-naam-'+opId).value='';renderOpdrachtenBeheer();showToast('toast-d','Fase toegevoegd!');}
-function deleteFase(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);op.fases.splice(fi,1);doc.studenten.forEach(s=>{if(s.voortgang[opId])s.voortgang[opId].splice(fi,1);});renderOpdrachtenBeheer();}
-function deleteStap(opId,fi,si){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);op.fases[fi].stappen.splice(si,1);doc.studenten.forEach(s=>{if(s.voortgang[opId]&&s.voortgang[opId][fi])s.voortgang[opId][fi].splice(si,1);});renderOpdrachtenBeheer();}
+function faseMoveUp(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);if(fi===0)return;[op.fases[fi-1],op.fases[fi]]=[op.fases[fi],op.fases[fi-1]];doc.studenten.forEach(s=>{const vg=s.voortgang[opId];if(!vg)return;if(vg[fi-1]&&vg[fi])[vg[fi-1],vg[fi]]=[vg[fi],vg[fi-1]];});autoSave();renderOpdrachtenBeheer();}
+function faseMoveDown(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);if(fi>=op.fases.length-1)return;[op.fases[fi],op.fases[fi+1]]=[op.fases[fi+1],op.fases[fi]];doc.studenten.forEach(s=>{const vg=s.voortgang[opId];if(!vg)return;if(vg[fi]&&vg[fi+1])[vg[fi],vg[fi+1]]=[vg[fi+1],vg[fi]];});autoSave();renderOpdrachtenBeheer();}
+function addFaseStap(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);const label=document.getElementById(`ns-label-${opId}-${fi}`).value.trim();const desc=document.getElementById(`ns-desc-${opId}-${fi}`).value.trim();const xp=parseInt(document.getElementById(`ns-xp-${opId}-${fi}`).value)||10;if(!label){showToast('toast-d','Vul een stapnaam in.');return;}op.fases[fi].stappen.push({id:doc.nextStapId++,label,desc,xp,bonus:false});doc.studenten.forEach(s=>{if(!s.voortgang[opId])s.voortgang[opId]=[];while(s.voortgang[opId].length<=fi)s.voortgang[opId].push([]);s.voortgang[opId][fi].push(false);});document.getElementById(`ns-label-${opId}-${fi}`).value='';document.getElementById(`ns-desc-${opId}-${fi}`).value='';document.getElementById(`ns-xp-${opId}-${fi}`).value='10';renderOpdrachtenBeheer();autoSave();showToast('toast-d','Stap toegevoegd!');}
+function addNieuweFase(opId){const doc=currentDocent;const naam=document.getElementById('nf-naam-'+opId).value.trim();if(!naam){showToast('toast-d','Geef de fase een naam.');return;}const op=doc.opdrachten.find(o=>o.id===opId);op.fases.push({naam,bonus:false,stappen:[]});doc.studenten.forEach(s=>{if(!s.voortgang[opId])s.voortgang[opId]=[];s.voortgang[opId].push([]);});document.getElementById('nf-naam-'+opId).value='';renderOpdrachtenBeheer();autoSave();showToast('toast-d','Fase toegevoegd!');}
+function deleteFase(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);op.fases.splice(fi,1);doc.studenten.forEach(s=>{if(s.voortgang[opId])s.voortgang[opId].splice(fi,1);});autoSave();renderOpdrachtenBeheer();}
+function deleteStap(opId,fi,si){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);op.fases[fi].stappen.splice(si,1);doc.studenten.forEach(s=>{if(s.voortgang[opId]&&s.voortgang[opId][fi])s.voortgang[opId][fi].splice(si,1);});autoSave();renderOpdrachtenBeheer();}
 function toggleEditStap(opId,fi,si){const el=document.getElementById(`edit-${opId}-${fi}-${si}`);el.style.display=el.style.display==='none'?'flex':'none';}
 function saveStap(opId,fi,si){
   const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);const step=op.fases[fi].stappen[si];
@@ -1080,6 +1080,7 @@ function publishOpdracht(opId){
 function unpublishOpdracht(bibId){
   bibliotheek=bibliotheek.filter(b=>b.id!==bibId);
   renderBibEigen();renderBibliotheek();
+  autoSave();
   showToast('toast-bib','Opdracht teruggetrokken uit bibliotheek.');
 }
 
@@ -1339,6 +1340,7 @@ function saveBadge(id){
     b.opdrachtId=sel&&sel.value?parseInt(sel.value):null;
   }
   renderBadgesPreview();
+  autoSave();
 }
 
 function addBadge(){
