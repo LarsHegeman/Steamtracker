@@ -1647,9 +1647,8 @@ window.currentDocent = null;
 </script>
 
 <script type="module">
-// ── Firebase imports ──
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAzuION0_MSzvf010DiO1pZKrHWQLswop4",
@@ -1660,63 +1659,74 @@ const firebaseConfig = {
   appId: "1:672215874996:web:ac467ebb0606bfe9aa46e1"
 };
 
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const REF = doc(db, 'steamtracker', 'appdata');
 
-// ── Firestore opslaan / laden ──
-async function slaDataOp() {
-  try {
-    await setDoc(doc(db, 'steamtracker', 'data'), {
-      docenten: JSON.parse(JSON.stringify(window.docenten)),
-      bibliotheek: JSON.parse(JSON.stringify(window.bibliotheek)),
-      nextDocentId: window.nextDocentId,
-      opgeslagen: new Date().toISOString()
-    });
-    console.log('Data opgeslagen in Firebase');
-  } catch(e) {
-    console.error('Opslaan mislukt:', e);
-  }
-}
-
-async function laadData() {
-  try {
-    const snap = await getDoc(doc(db, 'steamtracker', 'data'));
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data.docenten) window.docenten = data.docenten;
-      if (data.bibliotheek) window.bibliotheek = data.bibliotheek;
-      if (data.nextDocentId) window.nextDocentId = data.nextDocentId;
-      console.log('Data geladen uit Firebase ✓');
-    } else {
-      console.log('Geen data gevonden, start met standaard data');
-    }
-  } catch(e) {
-    console.error('Laden mislukt:', e);
-  }
-}
-
-// Automatisch opslaan na elke wijziging
+// ── Opslaan ──
 let saveTimer = null;
-function autoSave() {
+window._autoSave = function() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(slaDataOp, 800);
-}
-
-// ── Koppel Firebase functies aan app ──
-window._autoSave = function(){
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(slaDataOp, 800);
+  saveTimer = setTimeout(async () => {
+    try {
+      const payload = {
+        docenten: JSON.parse(JSON.stringify(window.docenten)),
+        bibliotheek: JSON.parse(JSON.stringify(window.bibliotheek)),
+        nextDocentId: window.nextDocentId,
+        ts: Date.now()
+      };
+      await setDoc(REF, payload);
+      console.log('✓ Opgeslagen in Firebase');
+    } catch(e) {
+      console.error('✗ Opslaan mislukt:', e.message);
+    }
+  }, 1000);
 };
 
-// ── Start app ──
-async function initApp(){
-  const el=document.createElement('div');
-  el.style.cssText='position:fixed;inset:0;background:rgba(10,10,30,0.82);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:#fff;font-family:system-ui,sans-serif';
-  el.innerHTML='<div style="font-size:30px;font-weight:700;letter-spacing:3px;margin-bottom:10px">STEAM tracker</div><div style="font-size:13px;opacity:.7;margin-bottom:20px">Data laden...</div><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+// ── Laden ──
+async function laadData() {
+  try {
+    const snap = await getDoc(REF);
+    if (snap.exists()) {
+      const d = snap.data();
+      if (d.docenten && d.docenten.length) {
+        window.docenten = d.docenten;
+        console.log('✓ Docenten geladen:', d.docenten.length);
+      }
+      if (d.bibliotheek) {
+        window.bibliotheek = d.bibliotheek;
+      }
+      if (d.nextDocentId) {
+        window.nextDocentId = d.nextDocentId;
+      }
+      console.log('✓ Data geladen uit Firebase');
+    } else {
+      console.log('ℹ Geen data in Firebase, gebruik standaard data');
+    }
+  } catch(e) {
+    console.error('✗ Laden mislukt:', e.message);
+  }
+}
+
+// ── Start ──
+async function initApp() {
+  // Laadscherm
+  const el = document.createElement('div');
+  el.id = 'fb-loader';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,30,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:#fff;font-family:system-ui';
+  el.innerHTML = `
+    <div style="font-size:32px;font-weight:700;letter-spacing:3px;margin-bottom:8px">STEAM tracker</div>
+    <div style="font-size:13px;opacity:.6;margin-bottom:24px">Data laden...</div>
+    <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  `;
   document.body.appendChild(el);
+
   await laadData();
+
   document.body.removeChild(el);
 }
+
 initApp();
 </script>
 </body>
