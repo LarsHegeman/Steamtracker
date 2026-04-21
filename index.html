@@ -608,9 +608,8 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a
 
 <script>
 // ── Stubs die overschreven worden door Firebase module ──
-let _autoSave = function(){};
 let saveTimer = null;
-function autoSave(){ _autoSave(); }
+function autoSave(){ if(window._autoSave) window._autoSave(); }
 
 const ADMIN_CODE='M.C.Escher98';
 const AVCOLS=[{bg:'#EEEDFE',c:'#3C3489'},{bg:'#E1F5EE',c:'#085041'},{bg:'#E6F1FB',c:'#0C447C'},{bg:'#FAECE7',c:'#712B13'},{bg:'#FAEEDA',c:'#633806'}];
