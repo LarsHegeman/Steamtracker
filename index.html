@@ -644,6 +644,12 @@ let docenten=[
 let nextDocentId=2;
 let openOpdrachten=new Set();
 let bibliotheek=[]; // gedeelde opdrachten tussen docenten
+
+// ── Koppel variabelen aan window zodat Firebase module ze kan lezen/schrijven ──
+Object.defineProperty(window,'docenten',{get(){return docenten;},set(v){docenten=v;}});
+Object.defineProperty(window,'bibliotheek',{get(){return bibliotheek;},set(v){bibliotheek=v;}});
+Object.defineProperty(window,'nextDocentId',{get(){return nextDocentId;},set(v){nextDocentId=v;}});
+
 let quizPendingOpId=null,quizPendingFi=null,quizPendingSi=null;
 
 let loginRole='student';
@@ -1661,11 +1667,12 @@ const db = getFirestore(firebaseApp);
 async function slaDataOp() {
   try {
     await setDoc(doc(db, 'steamtracker', 'data'), {
-      docenten: JSON.parse(JSON.stringify(docenten)),
-      bibliotheek: JSON.parse(JSON.stringify(bibliotheek)),
-      nextDocentId: nextDocentId,
+      docenten: JSON.parse(JSON.stringify(window.docenten)),
+      bibliotheek: JSON.parse(JSON.stringify(window.bibliotheek)),
+      nextDocentId: window.nextDocentId,
       opgeslagen: new Date().toISOString()
     });
+    console.log('Data opgeslagen in Firebase');
   } catch(e) {
     console.error('Opslaan mislukt:', e);
   }
@@ -1676,12 +1683,12 @@ async function laadData() {
     const snap = await getDoc(doc(db, 'steamtracker', 'data'));
     if (snap.exists()) {
       const data = snap.data();
-      if (data.docenten) docenten = data.docenten;
-      if (data.bibliotheek) bibliotheek = data.bibliotheek;
-      if (data.nextDocentId) nextDocentId = data.nextDocentId;
-      console.log('Data geladen uit Firebase');
+      if (data.docenten) window.docenten = data.docenten;
+      if (data.bibliotheek) window.bibliotheek = data.bibliotheek;
+      if (data.nextDocentId) window.nextDocentId = data.nextDocentId;
+      console.log('Data geladen uit Firebase ✓');
     } else {
-      console.log('Geen data gevonden, start met lege database');
+      console.log('Geen data gevonden, start met standaard data');
     }
   } catch(e) {
     console.error('Laden mislukt:', e);
