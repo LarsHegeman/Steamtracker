@@ -609,7 +609,7 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a
 <script>
 // ── Stubs die overschreven worden door Firebase module ──
 let _autoSave = function(){};
-let _laadData = async function(){ return; };
+let saveTimer = null;
 function autoSave(){ _autoSave(); }
 
 const ADMIN_CODE='M.C.Escher98';
@@ -1538,21 +1538,6 @@ function toggleArchief(hdr){
   if(chev)chev.style.transform=open?'rotate(180deg)':'rotate(0deg)';
 }
 
-// ── App initialisatie ──
-async function initApp(){
-  const el=document.createElement('div');
-  el.style.cssText='position:fixed;inset:0;background:rgba(10,10,30,0.82);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:#fff;font-family:system-ui,sans-serif';
-  el.innerHTML='<div style="font-size:30px;font-weight:700;letter-spacing:3px;margin-bottom:10px">STEAM tracker</div><div style="font-size:13px;opacity:.7;margin-bottom:20px">Data laden...</div><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
-  document.body.appendChild(el);
-  await laadData();
-  document.body.removeChild(el);
-}
-initApp();
-
-
-
-// ── Initialisatie (wordt aangeroepen vanuit Firebase module) ──
-function _initDone(){}
 </script>
 
 <script type="module">
