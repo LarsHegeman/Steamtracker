@@ -1663,6 +1663,34 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const REF = doc(db, 'steamtracker', 'appdata');
 
+// ── Firestore ondersteunt geen nested arrays ──
+// Oplossing: sla voortgang op als JSON string, zet terug bij laden
+
+function serializeDocenten(docenten) {
+  return docenten.map(d => ({
+    ...d,
+    studenten: d.studenten.map(s => ({
+      ...s,
+      // Voortgang: array van arrays -> JSON string
+      voortgang: JSON.stringify(s.voortgang || {}),
+      datums: JSON.stringify(s.datums || {}),
+      archief: JSON.stringify(s.archief || [])
+    }))
+  }));
+}
+
+function deserializeDocenten(docenten) {
+  return docenten.map(d => ({
+    ...d,
+    studenten: d.studenten.map(s => ({
+      ...s,
+      voortgang: typeof s.voortgang === 'string' ? JSON.parse(s.voortgang) : (s.voortgang || {}),
+      datums: typeof s.datums === 'string' ? JSON.parse(s.datums) : (s.datums || {}),
+      archief: typeof s.archief === 'string' ? JSON.parse(s.archief) : (s.archief || [])
+    }))
+  }));
+}
+
 // ── Opslaan ──
 let saveTimer = null;
 window._autoSave = function() {
@@ -1670,7 +1698,7 @@ window._autoSave = function() {
   saveTimer = setTimeout(async () => {
     try {
       const payload = {
-        docenten: JSON.parse(JSON.stringify(window.docenten)),
+        docenten: serializeDocenten(JSON.parse(JSON.stringify(window.docenten))),
         bibliotheek: JSON.parse(JSON.stringify(window.bibliotheek)),
         nextDocentId: window.nextDocentId,
         ts: Date.now()
@@ -1690,15 +1718,11 @@ async function laadData() {
     if (snap.exists()) {
       const d = snap.data();
       if (d.docenten && d.docenten.length) {
-        window.docenten = d.docenten;
+        window.docenten = deserializeDocenten(d.docenten);
         console.log('✓ Docenten geladen:', d.docenten.length);
       }
-      if (d.bibliotheek) {
-        window.bibliotheek = d.bibliotheek;
-      }
-      if (d.nextDocentId) {
-        window.nextDocentId = d.nextDocentId;
-      }
+      if (d.bibliotheek) window.bibliotheek = d.bibliotheek;
+      if (d.nextDocentId) window.nextDocentId = d.nextDocentId;
       console.log('✓ Data geladen uit Firebase');
     } else {
       console.log('ℹ Geen data in Firebase, gebruik standaard data');
@@ -1710,20 +1734,11 @@ async function laadData() {
 
 // ── Start ──
 async function initApp() {
-  // Laadscherm
   const el = document.createElement('div');
-  el.id = 'fb-loader';
   el.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,30,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:#fff;font-family:system-ui';
-  el.innerHTML = `
-    <div style="font-size:32px;font-weight:700;letter-spacing:3px;margin-bottom:8px">STEAM tracker</div>
-    <div style="font-size:13px;opacity:.6;margin-bottom:24px">Data laden...</div>
-    <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></div>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-  `;
+  el.innerHTML = '<div style="font-size:32px;font-weight:700;letter-spacing:3px;margin-bottom:8px">STEAM tracker</div><div style="font-size:13px;opacity:.6;margin-bottom:24px">Data laden...</div><div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
   document.body.appendChild(el);
-
   await laadData();
-
   document.body.removeChild(el);
 }
 
