@@ -293,8 +293,7 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a
 .archief-badge{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:#E1F5EE;border:1px solid #5DCAA5}
 .archief-badge-icoon{font-size:14px}
 .archief-badge-naam{font-size:12px;font-weight:500;color:#085041}
-.promoveer-btn{padding:6px 12px;background:#534AB7;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
-.promoveer-btn:hover{background:#3C3489}
+
 </style>
 </head>
 <body>
@@ -347,36 +346,6 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a
   <div class="badge-grid" id="student-badge-grid"></div>
   <div id="s-opdrachten-container"></div>
   
-
-<div id="promoveer-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,30,0.55);align-items:center;justify-content:center;z-index:9999;padding:1rem">
-  <div style="background:#fff;border-radius:16px;padding:1.75rem;max-width:400px;width:100%">
-    <div style="font-size:16px;font-weight:600;margin-bottom:4px">Naar volgend leerjaar</div>
-    <div class="muted" style="margin-bottom:1.25rem">De huidige voortgang en badges worden gearchiveerd. De student begint schoon in het nieuwe leerjaar.</div>
-    <div style="background:#f5f4f0;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px">
-      <div id="promoveer-student-naam" style="font-weight:600;margin-bottom:4px"></div>
-      <div id="promoveer-student-info" style="color:#888;font-size:12px"></div>
-    </div>
-    <div style="margin-bottom:1rem">
-      <div class="form-lbl" style="margin-bottom:4px">Nieuw leerjaar</div>
-      <select id="promoveer-nieuw-lj" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;color:#1a1a1a">
-        <option value="1">Leerjaar 1</option>
-        <option value="2" selected>Leerjaar 2</option>
-        <option value="3">Leerjaar 3</option>
-        <option value="4">Leerjaar 4</option>
-        <option value="5">Leerjaar 5</option>
-        <option value="6">Leerjaar 6</option>
-      </select>
-    </div>
-    <div style="margin-bottom:1.25rem">
-      <div class="form-lbl" style="margin-bottom:4px">Nieuwe klas</div>
-      <input type="text" id="promoveer-nieuw-klas" placeholder="bijv. 4A" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;color:#1a1a1a"/>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-primary" style="flex:1" onclick="voerPromoveerUit()">Archiveren &amp; doorstromen</button>
-      <button onclick="sluitPromoveerModal()" style="padding:8px 16px;border-radius:8px;border:1px solid #ddd;background:transparent;color:#666;font-size:13px;cursor:pointer">Annuleren</button>
-    </div>
-  </div>
-</div>
 
 <div id="quiz-overlay" class="quiz-overlay" style="display:none" onclick="if(event.target===this){}">
   <div class="quiz-modal">
@@ -637,7 +606,61 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a
   </div>
 </div>
 
-<script>
+<script type="module">
+// ── Firebase imports ──
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAzuION0_MSzvf010DiO1pZKrHWQLswop4",
+  authDomain: "steamtracker-7357f.firebaseapp.com",
+  projectId: "steamtracker-7357f",
+  storageBucket: "steamtracker-7357f.firebasestorage.app",
+  messagingSenderId: "672215874996",
+  appId: "1:672215874996:web:ac467ebb0606bfe9aa46e1"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+// ── Firestore opslaan / laden ──
+async function slaDataOp() {
+  try {
+    await setDoc(doc(db, 'steamtracker', 'data'), {
+      docenten: JSON.parse(JSON.stringify(docenten)),
+      bibliotheek: JSON.parse(JSON.stringify(bibliotheek)),
+      nextDocentId: nextDocentId,
+      opgeslagen: new Date().toISOString()
+    });
+  } catch(e) {
+    console.error('Opslaan mislukt:', e);
+  }
+}
+
+async function laadData() {
+  try {
+    const snap = await getDoc(doc(db, 'steamtracker', 'data'));
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.docenten) docenten = data.docenten;
+      if (data.bibliotheek) bibliotheek = data.bibliotheek;
+      if (data.nextDocentId) nextDocentId = data.nextDocentId;
+      console.log('Data geladen uit Firebase');
+    } else {
+      console.log('Geen data gevonden, start met lege database');
+    }
+  } catch(e) {
+    console.error('Laden mislukt:', e);
+  }
+}
+
+// Automatisch opslaan na elke wijziging
+let saveTimer = null;
+function autoSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(slaDataOp, 800);
+}
+
 const ADMIN_CODE='M.C.Escher98';
 const AVCOLS=[{bg:'#EEEDFE',c:'#3C3489'},{bg:'#E1F5EE',c:'#085041'},{bg:'#E6F1FB',c:'#0C447C'},{bg:'#FAECE7',c:'#712B13'},{bg:'#FAEEDA',c:'#633806'}];
 const OP_KLEUREN=['#534AB7','#1D9E75','#185FA5','#854F0B','#A32D2D'];
@@ -787,7 +810,7 @@ function toggleStap(opId,fi,si){
   while(vg.length<=fi)vg.push([]);while(vg[fi].length<=si)vg[fi].push(false);
   const wasKlaar=vg[fi][si];
   // Als stap al gedaan is: gewoon uitvinken
-  if(wasKlaar){vg[fi][si]=false;renderStudentOpdrachten(currentStudent,currentDocent);updateXP(currentStudent,currentDocent);return;}
+  if(wasKlaar){vg[fi][si]=false;renderStudentOpdrachten(currentStudent,currentDocent);updateXP(currentStudent,currentDocent);autoSave();return;}
   // Als stap nog niet gedaan: quiz tonen als die er is
   const step=op.fases[fi].stappen[si];
   if(step.quiz&&step.quiz.vraag&&step.quiz.opties.length>=2){
@@ -802,7 +825,7 @@ function vinkStapAf(opId,fi,si){
   vg[fi][si]=true;
   zetDatum(currentStudent,opId,fi,si);
   renderStudentOpdrachten(currentStudent,currentDocent);updateXP(currentStudent,currentDocent);
-  showToast('toast-s','+'+op.fases[fi].stappen[si].xp+' XP verdiend!');
+  autoSave();showToast('toast-s','+'+op.fases[fi].stappen[si].xp+' XP verdiend!');
 }
 function openQuiz(opId,fi,si,quiz){
   quizPendingOpId=opId;quizPendingFi=fi;quizPendingSi=si;
@@ -905,31 +928,31 @@ function addStudent(){
   const vg={};doc.opdrachten.forEach(op=>{vg[op.id]=op.fases.map(f=>f.stappen.map(()=>false));});
   doc.studenten.push({id:doc.nextStudentId++,name:naam,init:makeInit(naam),av:doc.nextStudentId%5,klas:kl,leerjaar:lj||'1',code,voortgang:vg,archief:[]});
   document.getElementById('new-vnaam').value='';document.getElementById('new-anaam').value='';document.getElementById('new-klas').value='';document.getElementById('new-code').value='';
-  renderManageList();updateStats();showToast('toast-st',naam+' toegevoegd!');
+  renderManageList();updateStats();autoSave();showToast('toast-st',naam+' toegevoegd!');
 }
 function saveCode(id){
   const doc=currentDocent;const inp=document.getElementById('code-inp-'+id);const val=inp.value.trim();
   if(!val){showToast('toast-st','Code mag niet leeg zijn.');return;}
   if(docenten.some(d=>d.studenten.find(s=>s.id!==id&&s.code===val))){showToast('toast-st','Code al in gebruik.');return;}
-  doc.studenten.find(s=>s.id===id).code=val;inp.classList.add('saved');setTimeout(()=>inp.classList.remove('saved'),1500);showToast('toast-st','Code opgeslagen!');
+  doc.studenten.find(s=>s.id===id).code=val;inp.classList.add('saved');setTimeout(()=>inp.classList.remove('saved'),1500);autoSave();showToast('toast-st','Code opgeslagen!');
 }
-function removeStudent(id){const doc=currentDocent;doc.studenten=doc.studenten.filter(s=>s.id!==id);renderManageList();updateStats();renderOverzicht();}
-function clearAll(){if(!confirm('Alle studenten verwijderen?'))return;const doc=currentDocent;doc.studenten=[];doc.nextStudentId=1;renderManageList();updateStats();renderOverzicht();}
+function removeStudent(id){const doc=currentDocent;doc.studenten=doc.studenten.filter(s=>s.id!==id);renderManageList();updateStats();renderOverzicht();autoSave();}
+function clearAll(){if(!confirm('Alle studenten verwijderen?'))return;const doc=currentDocent;doc.studenten=[];doc.nextStudentId=1;renderManageList();updateStats();renderOverzicht();autoSave();}
 function renderManageList(){
   const doc=currentDocent;const tbody=document.getElementById('manage-tbody');tbody.innerHTML='';document.getElementById('student-count').textContent='('+doc.studenten.length+')';
-  if(!doc.studenten.length){tbody.innerHTML='<tr><td colspan="5" class="muted" style="padding:12px 8px">Nog geen studenten.</td></tr>';return;}
+  if(!doc.studenten.length){tbody.innerHTML='<tr><td colspan="4" class="muted" style="padding:12px 8px">Nog geen studenten.</td></tr>';return;}
   const byKlas={};doc.studenten.forEach(s=>{(byKlas[s.klas]=byKlas[s.klas]||[]).push(s);});
-  Object.keys(byKlas).sort().forEach(kl=>{const hdr=document.createElement('tr');hdr.innerHTML=`<td colspan="5" style="padding:10px 8px 4px;font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #f0efe9">Klas ${kl} — ${byKlas[kl].length} studenten</td>`;tbody.appendChild(hdr);byKlas[kl].forEach(s=>{const tr=document.createElement('tr');tr.innerHTML=`<td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="${avStyle(s.av)};width:26px;height:26px;font-size:10px">${s.init}</div><span style="font-weight:500">${s.name}</span></div></td><td><span style="font-size:12px;color:#888">${s.klas}</span></td><td><span style="font-size:12px;color:#888">Jaar ${s.leerjaar||'?'}</span></td><td><input class="code-input" id="code-inp-${s.id}" value="${s.code}" onkeydown="if(event.key==='Enter')saveCode(${s.id})"/></td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="save-btn" onclick="saveCode(${s.id})">Opslaan</button><button class="promoveer-btn" onclick="openPromoveerModal(${s.id})">Naar volgend jaar</button><button class="btn-danger" style="font-size:11px" onclick="removeStudent(${s.id})">Verwijderen</button></td>`;tbody.appendChild(tr);});});
+  Object.keys(byKlas).sort().forEach(kl=>{const hdr=document.createElement('tr');hdr.innerHTML=`<td colspan="4" style="padding:10px 8px 4px;font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #f0efe9">Klas ${kl} — ${byKlas[kl].length} studenten</td>`;tbody.appendChild(hdr);byKlas[kl].forEach(s=>{const tr=document.createElement('tr');tr.innerHTML=`<td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="${avStyle(s.av)};width:26px;height:26px;font-size:10px">${s.init}</div><span style="font-weight:500">${s.name}</span></div></td><td><span style="font-size:12px;color:#888">${s.klas}</span></td><td><span style="font-size:12px;color:#888">Jaar ${s.leerjaar||'?'}</span></td><td><input class="code-input" id="code-inp-${s.id}" value="${s.code}" onkeydown="if(event.key==='Enter')saveCode(${s.id})"/></td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="save-btn" onclick="saveCode(${s.id})">Opslaan</button><button class="btn-danger" style="font-size:11px" onclick="removeStudent(${s.id})">Verwijderen</button></td>`;tbody.appendChild(tr);});});
 }
 // Opdrachten CRUD (docent-eigen)
 function addOpdracht(){
   const doc=currentDocent;const naam=document.getElementById('new-op-naam').value.trim();const desc=document.getElementById('new-op-desc').value.trim();const opLj=document.getElementById('new-op-leerjaar').value;
-  if(!naam){showToast('toast-d','Geef de opdracht een naam.');return;}
+  if(!naam){autoSave();showToast('toast-d','Geef de opdracht een naam.');return;}
   const newOp={id:doc.nextOpId++,naam,desc,leerjaar:opLj||'alle',bonus:false,geblokkeerd:true,fases:[]};doc.opdrachten.push(newOp);doc.studenten.forEach(s=>s.voortgang[newOp.id]=[]);
-  document.getElementById('new-op-naam').value='';document.getElementById('new-op-desc').value='';renderOpdrachtenBeheer();updateStats();renderOvOpdrachtTabs();showToast('toast-d','Opdracht aangemaakt!');
+  document.getElementById('new-op-naam').value='';document.getElementById('new-op-desc').value='';renderOpdrachtenBeheer();updateStats();renderOvOpdrachtTabs();autoSave();showToast('toast-d','Opdracht aangemaakt!');
 }
 function deleteOpdracht(opId){if(!confirm('Opdracht verwijderen?'))return;const doc=currentDocent;doc.opdrachten=doc.opdrachten.filter(o=>o.id!==opId);doc.studenten.forEach(s=>delete s.voortgang[opId]);renderOpdrachtenBeheer();updateStats();renderOvOpdrachtTabs();if(currentOvOpId===opId){currentOvOpId=null;renderOverzicht();}showToast('toast-d','Opdracht verwijderd.');}
-function toggleGeblokkeerd(opId){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);op.geblokkeerd=!op.geblokkeerd;renderOpdrachtenBeheer();}
+function toggleGeblokkeerd(opId){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);op.geblokkeerd=!op.geblokkeerd;autoSave();renderOpdrachtenBeheer();}
 function faseMoveUp(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);if(fi===0)return;[op.fases[fi-1],op.fases[fi]]=[op.fases[fi],op.fases[fi-1]];doc.studenten.forEach(s=>{const vg=s.voortgang[opId];if(!vg)return;if(vg[fi-1]&&vg[fi])[vg[fi-1],vg[fi]]=[vg[fi],vg[fi-1]];});renderOpdrachtenBeheer();}
 function faseMoveDown(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);if(fi>=op.fases.length-1)return;[op.fases[fi],op.fases[fi+1]]=[op.fases[fi+1],op.fases[fi]];doc.studenten.forEach(s=>{const vg=s.voortgang[opId];if(!vg)return;if(vg[fi]&&vg[fi+1])[vg[fi],vg[fi+1]]=[vg[fi+1],vg[fi]];});renderOpdrachtenBeheer();}
 function addFaseStap(opId,fi){const doc=currentDocent;const op=doc.opdrachten.find(o=>o.id===opId);const label=document.getElementById(`ns-label-${opId}-${fi}`).value.trim();const desc=document.getElementById(`ns-desc-${opId}-${fi}`).value.trim();const xp=parseInt(document.getElementById(`ns-xp-${opId}-${fi}`).value)||10;if(!label){showToast('toast-d','Vul een stapnaam in.');return;}op.fases[fi].stappen.push({id:doc.nextStapId++,label,desc,xp,bonus:false});doc.studenten.forEach(s=>{if(!s.voortgang[opId])s.voortgang[opId]=[];while(s.voortgang[opId].length<=fi)s.voortgang[opId].push([]);s.voortgang[opId][fi].push(false);});document.getElementById(`ns-label-${opId}-${fi}`).value='';document.getElementById(`ns-desc-${opId}-${fi}`).value='';document.getElementById(`ns-xp-${opId}-${fi}`).value='10';renderOpdrachtenBeheer();showToast('toast-d','Stap toegevoegd!');}
@@ -955,7 +978,7 @@ function saveStap(opId,fi,si){
   } else {
     delete step.quiz;
   }
-  renderOpdrachtenBeheer();showToast('toast-d','Stap opgeslagen!');
+  renderOpdrachtenBeheer();autoSave();showToast('toast-d','Stap opgeslagen!');
 }
 function renderOpdrachtenBeheer(){
   const doc=currentDocent;const c=document.getElementById('opdrachten-beheer');c.innerHTML='';
@@ -1007,7 +1030,7 @@ function parsePaste(){previewRows=parseRows(document.getElementById('paste-area'
 function handleFile(file){if(!file)return;const r=new FileReader();r.onload=e=>{previewRows=parseRows(e.target.result);renderPreview('csv-preview');};r.readAsText(file);}
 function handleDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('drag');handleFile(e.dataTransfer.files[0]);}
 function renderPreview(id){const c=document.getElementById(id);if(!previewRows.length){c.innerHTML='';return;}const ok=previewRows.filter(r=>r.valid),bad=previewRows.filter(r=>!r.valid);let html=`<div style="overflow-x:auto;margin-top:10px"><table class="preview-table"><thead><tr><th>#</th><th>Naam</th><th>Klas</th><th>Leerjaar</th><th>Code</th><th>Status</th></tr></thead><tbody>`;previewRows.forEach((r,i)=>html+=`<tr class="${r.valid?'ok':'err'}"><td>${i+1}</td><td>${r.naam||'—'}</td><td>${r.klas||'—'}</td><td>${r.leerjaar||'1'}</td><td>${r.code||'<span style="color:#bbb;font-style:italic">automatisch</span>'}</td><td style="font-size:11px">${r.valid?'<span style="color:#085041">Klaar</span>':'<span style="color:#A32D2D">Onvolledig</span>'}</td></tr>`);html+=`</tbody></table></div><div class="import-actions">`;if(ok.length)html+=`<span class="count-badge">${ok.length} studenten klaar</span>`;if(bad.length)html+=`<span class="err-badge">${bad.length} rijen overgeslagen</span>`;if(ok.length)html+=`<button class="btn-primary" onclick="importStudents()">Importeren</button>`;html+=`</div>`;c.innerHTML=html;}
-function importStudents(){const doc=currentDocent;const ok=previewRows.filter(r=>r.valid);let added=0;ok.forEach(r=>{const kl=r.klas.toUpperCase();if(doc.studenten.find(s=>s.name.toLowerCase()===r.naam.toLowerCase()&&s.klas===kl))return;const n=doc.studenten.filter(s=>s.klas===kl).length+1;let code=r.code||makeCode(r.naam,kl,n);if(docenten.some(d=>d.studenten.find(s=>s.code===code)))code=makeCode(r.naam,kl,n+10+Math.floor(Math.random()*89));const vg={};doc.opdrachten.forEach(op=>{vg[op.id]=op.fases.map(f=>f.stappen.map(()=>false));});doc.studenten.push({id:doc.nextStudentId++,name:r.naam,init:makeInit(r.naam),av:doc.nextStudentId%5,klas:kl,leerjaar:r.leerjaar||'1',code,voortgang:vg,archief:[]});added++;});previewRows=[];document.getElementById('paste-area').value='';document.getElementById('paste-preview').innerHTML='';document.getElementById('csv-preview').innerHTML='';renderManageList();updateStats();showToast('toast-st',added+' studenten geïmporteerd!');}
+function importStudents(){const doc=currentDocent;const ok=previewRows.filter(r=>r.valid);let added=0;ok.forEach(r=>{const kl=r.klas.toUpperCase();if(doc.studenten.find(s=>s.name.toLowerCase()===r.naam.toLowerCase()&&s.klas===kl))return;const n=doc.studenten.filter(s=>s.klas===kl).length+1;let code=r.code||makeCode(r.naam,kl,n);if(docenten.some(d=>d.studenten.find(s=>s.code===code)))code=makeCode(r.naam,kl,n+10+Math.floor(Math.random()*89));const vg={};doc.opdrachten.forEach(op=>{vg[op.id]=op.fases.map(f=>f.stappen.map(()=>false));});doc.studenten.push({id:doc.nextStudentId++,name:r.naam,init:makeInit(r.naam),av:doc.nextStudentId%5,klas:kl,leerjaar:r.leerjaar||'1',code,voortgang:vg,archief:[]});added++;});previewRows=[];document.getElementById('paste-area').value='';document.getElementById('paste-preview').innerHTML='';document.getElementById('csv-preview').innerHTML='';autoSave();renderManageList();updateStats();showToast('toast-st',added+' studenten geïmporteerd!');}
 function importTab(tab,btn){document.querySelectorAll('.itab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');document.getElementById('import-plak').style.display=tab==='plak'?'block':'none';document.getElementById('import-csv').style.display=tab==='csv'?'block':'none';previewRows=[];}
 
 // ── ADMIN VIEW ──
@@ -1025,17 +1048,17 @@ function addDocent(){
       ],
       nextBadgeId:5,nextOpId:1,nextStapId:1,sjablonen:[],nextSjabloonId:1,nextStudentId:1});
   document.getElementById('new-doc-naam').value='';document.getElementById('new-doc-code').value='';
-  renderDocentenLijst();renderAdminOverzicht();showToast('toast-admin','Docent "'+naam+'" toegevoegd!');
+  autoSave();renderDocentenLijst();renderAdminOverzicht();autoSave();showToast('toast-admin','Docent "'+naam+'" toegevoegd!');
 }
 function removeDocent(id){
   if(!confirm('Docent verwijderen? Alle studenten en opdrachten van deze docent worden ook verwijderd.'))return;
-  docenten=docenten.filter(d=>d.id!==id);renderDocentenLijst();renderAdminOverzicht();showToast('toast-admin','Docent verwijderd.');
+  docenten=docenten.filter(d=>d.id!==id);renderDocentenLijst();renderAdminOverzicht();autoSave();showToast('toast-admin','Docent verwijderd.');
 }
 function saveDocentCode(id){
   const inp=document.getElementById('dcode-inp-'+id);const val=inp.value.trim();
   if(!val){showToast('toast-admin','Code mag niet leeg zijn.');return;}
   if(docenten.find(d=>d.id!==id&&d.code===val)){showToast('toast-admin','Code al in gebruik.');return;}
-  docenten.find(d=>d.id===id).code=val;inp.classList.add('saved');setTimeout(()=>inp.classList.remove('saved'),1500);showToast('toast-admin','Code opgeslagen!');
+  docenten.find(d=>d.id===id).code=val;inp.classList.add('saved');setTimeout(()=>inp.classList.remove('saved'),1500);autoSave();showToast('toast-admin','Code opgeslagen!');
 }
 function renderDocentenLijst(){
   const c=document.getElementById('docenten-lijst');c.innerHTML='';
@@ -1074,7 +1097,7 @@ function showToast(id,msg){const t=document.getElementById(id);t.textContent=msg
 function wijzigOpLeerjaar(opId,lj){
   const doc=currentDocent;
   const op=doc.opdrachten.find(o=>o.id===opId);
-  if(op){op.leerjaar=lj;renderOpdrachtenBeheer();showToast('toast-d','Leerjaar bijgewerkt!');}
+  if(op){op.leerjaar=lj;renderOpdrachtenBeheer();autoSave();showToast('toast-d','Leerjaar bijgewerkt!');}
 }
 
 function publishOpdracht(opId){
@@ -1083,7 +1106,7 @@ function publishOpdracht(opId){
   if(!op)return;
   // Check if already published by this docent
   const bestaand=bibliotheek.findIndex(b=>b.docentId===doc.id&&b.opId===opId);
-  if(bestaand>=0){showToast('toast-bib','Al gepubliceerd.');return;}
+  if(bestaand>=0){autoSave();showToast('toast-bib','Al gepubliceerd.');return;}
   // Deep copy opdracht
   const copy=JSON.parse(JSON.stringify(op));
   bibliotheek.push({
@@ -1108,7 +1131,7 @@ function importeerOpdracht(bibId){
   const doc=currentDocent;
   const item=bibliotheek.find(b=>b.id===bibId);
   if(!item)return;
-  if(item.docentId===doc.id){showToast('toast-bib','Dit is jouw eigen opdracht.');return;}
+  if(item.docentId===doc.id){autoSave();showToast('toast-bib','Dit is jouw eigen opdracht.');return;}
   // Deep copy en geef nieuwe IDs
   const copy=JSON.parse(JSON.stringify(item.opdracht));
   copy.id=doc.nextOpId++;
@@ -1234,13 +1257,13 @@ function adminVerwijderBib(bibId){
   if(!confirm('Opdracht uit de bibliotheek verwijderen?'))return;
   bibliotheek=bibliotheek.filter(b=>b.id!==bibId);
   renderAdminBibliotheek();
-  showToast('toast-admin-bib','Opdracht verwijderd uit bibliotheek.');
+  showToast('toast-admin-bib','Opdracht verwijderd uit bibliotheek.');autoSave();
 }
 
 function toggleBonus(opId){
   const doc=currentDocent;
   const op=doc.opdrachten.find(o=>o.id===opId);
-  if(op){op.bonus=!op.bonus;renderOpdrachtenBeheer();showToast('toast-d',op.bonus?'Opdracht ingesteld als bonusopdracht!':'Bonusstatus verwijderd.');}
+  if(op){op.bonus=!op.bonus;renderOpdrachtenBeheer();autoSave();showToast('toast-d',op.bonus?'Opdracht ingesteld als bonusopdracht!':'Bonusstatus verwijderd.');}
 }
 
 function toggleFaseBonus(opId,fi){
@@ -1248,14 +1271,14 @@ function toggleFaseBonus(opId,fi){
   const fase=doc.opdrachten.find(o=>o.id===opId).fases[fi];
   fase.bonus=!fase.bonus;
   renderOpdrachtenBeheer();
-  showToast('toast-d',fase.bonus?'Fase ingesteld als bonusfase!':'Bonusstatus verwijderd.');
+  autoSave();showToast('toast-d',fase.bonus?'Fase ingesteld als bonusfase!':'Bonusstatus verwijderd.');
 }
 function toggleStapBonus(opId,fi,si){
   const doc=currentDocent;
   const step=doc.opdrachten.find(o=>o.id===opId).fases[fi].stappen[si];
   step.bonus=!step.bonus;
   renderOpdrachtenBeheer();
-  showToast('toast-d',step.bonus?'Stap ingesteld als bonusstap!':'Bonusstatus verwijderd.');
+  autoSave();showToast('toast-d',step.bonus?'Stap ingesteld als bonusstap!':'Bonusstatus verwijderd.');
 }
 
 function badgeVerdiend(b,s,doc,totalVerdiend){
@@ -1367,7 +1390,7 @@ function addBadge(){
   const icoon=document.getElementById('new-badge-icoon').value.trim()||'🏅';
   const naam=document.getElementById('new-badge-naam').value.trim();
   const xp=parseInt(document.getElementById('new-badge-xp').value)||50;
-  if(!naam){showToast('toast-badges','Geef de badge een naam.');return;}
+  if(!naam){autoSave();showToast('toast-badges','Geef de badge een naam.');return;}
   if(!doc.badges)doc.badges=[];
   if(!doc.nextBadgeId)doc.nextBadgeId=1;
   const type=document.getElementById('new-badge-type').value;
@@ -1385,7 +1408,7 @@ function deleteBadge(id){
   const doc=currentDocent;
   doc.badges=doc.badges.filter(b=>b.id!==id);
   renderBadgesBeheer();
-  showToast('toast-badges','Badge verwijderd.');
+  autoSave();showToast('toast-badges','Badge verwijderd.');
 }
 
 function renderBadgesPreview(){
@@ -1432,7 +1455,7 @@ function slaOpAlsSjabloon(opId){
     aangemaakt:new Date().toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric'}),
     opdracht:copy
   });
-  showToast('toast-d','"'+op.naam+'" opgeslagen als sjabloon!');
+  autoSave();showToast('toast-d','"'+op.naam+'" opgeslagen als sjabloon!');
 }
 
 function gebruikSjabloon(sjId){
@@ -1460,7 +1483,7 @@ function gebruikSjabloon(sjId){
   if(opdPill)opdPill.classList.add('active');
   ['tab-overzicht','tab-detail','tab-studenten','tab-opdrachten','tab-bibliotheek','tab-badges','tab-sjablonen'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('tab-opdrachten').style.display='block';
-  showToast('toast-sj','"'+copy.naam+'" toegevoegd aan jouw opdrachten!');
+  autoSave();showToast('toast-sj','"'+copy.naam+'" toegevoegd aan jouw opdrachten!');
 }
 
 function verwijderSjabloon(sjId){
@@ -1468,7 +1491,7 @@ function verwijderSjabloon(sjId){
   if(!confirm('Sjabloon verwijderen?'))return;
   doc.sjablonen=doc.sjablonen.filter(s=>s.id!==sjId);
   renderSjablonen();
-  showToast('toast-sj','Sjabloon verwijderd.');
+  autoSave();showToast('toast-sj','Sjabloon verwijderd.');
 }
 
 function renderSjablonen(){
@@ -1514,84 +1537,6 @@ function renderSjablonen(){
   });
 }
 
-let promoveerStudentId=null;
-
-function openPromoveerModal(id){
-  const doc=currentDocent;
-  const s=doc.studenten.find(s=>s.id===id);
-  if(!s)return;
-  promoveerStudentId=id;
-  document.getElementById('promoveer-student-naam').textContent=s.name;
-  document.getElementById('promoveer-student-info').textContent='Klas '+s.klas+' — Leerjaar '+( s.leerjaar||'1');
-  // Set default new leerjaar to current+1
-  const huidigLj=parseInt(s.leerjaar||'1');
-  const sel=document.getElementById('promoveer-nieuw-lj');
-  sel.value=Math.min(huidigLj+1,6).toString();
-  document.getElementById('promoveer-nieuw-klas').value='';
-  const ov=document.getElementById('promoveer-overlay');ov.style.display='flex';ov.style.alignItems='center';ov.style.justifyContent='center';
-}
-
-function sluitPromoveerModal(){
-  document.getElementById('promoveer-overlay').style.display='none';
-  promoveerStudentId=null;
-}
-
-function voerPromoveerUit(){
-  const doc=currentDocent;
-  const s=doc.studenten.find(s=>s.id===promoveerStudentId);
-  if(!s)return;
-  const nieuwLj=document.getElementById('promoveer-nieuw-lj').value;
-  const nieuwKlas=document.getElementById('promoveer-nieuw-klas').value.trim().toUpperCase();
-  if(!nieuwKlas){alert('Vul een nieuwe klas in.');return;}
-
-  // Bereken welke badges verdiend zijn
-  const totalVerdiend=totalXP(s,doc)+totalXPBonus(s,doc);
-  const verdiendeBadges=(doc.badges||[]).filter(b=>badgeVerdiend(b,s,doc,totalVerdiend));
-
-  // Sla voortgang op per opdracht
-  const opdrachtSnapshots=doc.opdrachten.map(op=>{
-    const vg=s.voortgang[op.id]||[];
-    const totaal=op.fases.reduce((a,f)=>a+f.stappen.filter(st=>!st.bonus).length,0);
-    const gedaan=op.fases.reduce((a,f,fi)=>a+f.stappen.filter((st,si)=>!st.bonus&&(vg[fi]||[])[si]).length,0);
-    return{
-      naam:op.naam,
-      leerjaar:op.leerjaar,
-      pct:totaal?Math.round(gedaan/totaal*100):0,
-      bonus:op.bonus||false
-    };
-  }).filter(op=>op.pct>0); // alleen opdrachten waar de student aan heeft gewerkt
-
-  // Archiveer het huidige jaar
-  if(!s.archief)s.archief=[];
-  s.archief.push({
-    leerjaar:s.leerjaar||'1',
-    klas:s.klas,
-    schooljaar:new Date().getFullYear()+'-'+(new Date().getFullYear()+1),
-    gearchiveerd:new Date().toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric'}),
-    badges:verdiendeBadges.map(b=>({naam:b.naam,icoon:b.icoon})),
-    opdrachten:opdrachtSnapshots,
-    xp:Math.round(totalVerdiend)
-  });
-
-  // Reset student voor nieuw jaar
-  s.leerjaar=String(nieuwLj);
-  s.klas=nieuwKlas;
-  s.voortgang={};
-  if(!s.datums)s.datums={};
-  s.datums={};
-  // Initialiseer voortgang voor relevante opdrachten
-  doc.opdrachten.forEach(op=>{
-    if(op.leerjaar==='alle'||op.leerjaar===nieuwLj){
-      s.voortgang[op.id]=op.fases.map(f=>f.stappen.map(()=>false));
-    }
-  });
-
-  // Update eerst de data, dan UI
-  renderManageList();
-  updateStats();
-  sluitPromoveerModal();
-  showToast('toast-st',s.name+' is nu in leerjaar '+nieuwLj+', klas '+nieuwKlas+'!');
-}
 
 function renderStudentArchief(s,doc){
   const c=document.getElementById('s-archief-container');
@@ -1641,35 +1586,18 @@ function toggleArchief(hdr){
   const chev=document.getElementById('archief-chevron');
   if(chev)chev.style.transform=open?'rotate(180deg)':'rotate(0deg)';
 }
+
+// ── App initialisatie ──
+async function initApp(){
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;inset:0;background:rgba(10,10,30,0.82);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:#fff;font-family:system-ui,sans-serif';
+  el.innerHTML='<div style="font-size:30px;font-weight:700;letter-spacing:3px;margin-bottom:10px">STEAM tracker</div><div style="font-size:13px;opacity:.7;margin-bottom:20px">Data laden...</div><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+  document.body.appendChild(el);
+  await laadData();
+  document.body.removeChild(el);
+}
+initApp();
+
 </script>
-<div id="promoveer-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,30,0.55);align-items:center;justify-content:center;z-index:9999;padding:1rem">
-  <div style="background:#fff;border-radius:16px;padding:1.75rem;max-width:400px;width:100%">
-    <div style="font-size:16px;font-weight:600;margin-bottom:4px">Naar volgend leerjaar</div>
-    <div class="muted" style="margin-bottom:1.25rem">De huidige voortgang en badges worden gearchiveerd. De student begint schoon in het nieuwe leerjaar.</div>
-    <div style="background:#f5f4f0;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px">
-      <div id="promoveer-student-naam" style="font-weight:600;margin-bottom:4px"></div>
-      <div id="promoveer-student-info" style="color:#888;font-size:12px"></div>
-    </div>
-    <div style="margin-bottom:1rem">
-      <div class="form-lbl" style="margin-bottom:4px">Nieuw leerjaar</div>
-      <select id="promoveer-nieuw-lj" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;color:#1a1a1a">
-        <option value="1">Leerjaar 1</option>
-        <option value="2" selected>Leerjaar 2</option>
-        <option value="3">Leerjaar 3</option>
-        <option value="4">Leerjaar 4</option>
-        <option value="5">Leerjaar 5</option>
-        <option value="6">Leerjaar 6</option>
-      </select>
-    </div>
-    <div style="margin-bottom:1.25rem">
-      <div class="form-lbl" style="margin-bottom:4px">Nieuwe klas</div>
-      <input type="text" id="promoveer-nieuw-klas" placeholder="bijv. 4A" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;color:#1a1a1a"/>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-primary" style="flex:1" onclick="voerPromoveerUit()">Archiveren &amp; doorstromen</button>
-      <button onclick="sluitPromoveerModal()" style="padding:8px 16px;border-radius:8px;border:1px solid #ddd;background:transparent;color:#666;font-size:13px;cursor:pointer">Annuleren</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
