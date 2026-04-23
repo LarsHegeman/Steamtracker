@@ -1748,26 +1748,39 @@ window._firebaseLogin = async function(email, password, role) {
       window.show('screen-admin');
       window.renderAdminOverzicht();
     } else {
-      // Docent: zoek de bijpassende docent op email (gebruik email prefix als naam match)
-      // Of zoek op basis van Firebase email -> match met docent in data
+      // Docent: zoek op opgeslagen email, anders toon keuzemenu
       const emailLower = email.toLowerCase();
-      // Match op email of op naam (voor bestaande docenten)
-      let doc = window.docenten.find(d =>
-        d.email === emailLower ||
-        d.naam.toLowerCase() === emailLower.split('@')[0].toLowerCase()
-      );
-      if(!doc && window.docenten.length > 0) {
-        // Fallback: eerste docent die geen email heeft (legacy)
-        doc = window.docenten.find(d => !d.email);
-      }
-      if(doc) {
-        // Sla email op bij docent voor volgende keer
-        doc.email = emailLower;
-        window.currentDocent = doc;
-        window.loadDocentView(doc);
+      let gevonden = window.docenten.find(d => d.email === emailLower);
+
+      if(gevonden) {
+        // Bekend account - direct inloggen
+        window.currentDocent = gevonden;
+        window.loadDocentView(gevonden);
         window.show('screen-docent');
+      } else if(window.docenten.length === 1) {
+        // Maar één docent - automatisch koppelen
+        window.docenten[0].email = emailLower;
+        window.currentDocent = window.docenten[0];
+        window.currentDocent = window.docenten[0];
+        window.loadDocentView(window.docenten[0]);
+        window.show('screen-docent');
+        window._autoSave();
+      } else if(window.docenten.length > 1) {
+        // Meerdere docenten - toon keuzemenu
+        const keuze = window.docenten.map((d,i) => i+1+'. '+d.naam).join('\n');
+        const idx = parseInt(prompt('Welke docent ben jij? Typ het nummer:\n'+keuze)) - 1;
+        if(idx >= 0 && idx < window.docenten.length) {
+          window.docenten[idx].email = emailLower;
+          window.currentDocent = window.docenten[idx];
+          window.loadDocentView(window.docenten[idx]);
+          window.show('screen-docent');
+          window._autoSave();
+        } else {
+          errEl.textContent = 'Ongeldige keuze.';
+          errEl.classList.add('show');
+        }
       } else {
-        errEl.textContent = 'Geen bijpassende docent gevonden in het systeem.';
+        errEl.textContent = 'Geen docenten gevonden in het systeem.';
         errEl.classList.add('show');
       }
     }
