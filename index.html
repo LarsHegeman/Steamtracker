@@ -611,7 +611,7 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a
 let saveTimer = null;
 function autoSave(){ if(window._autoSave) window._autoSave(); }
 
-const ADMIN_CODE='M.C.Escher98';
+// Admin authenticatie via Firebase Auth
 const AVCOLS=[{bg:'#EEEDFE',c:'#3C3489'},{bg:'#E1F5EE',c:'#085041'},{bg:'#E6F1FB',c:'#0C447C'},{bg:'#FAECE7',c:'#712B13'},{bg:'#FAEEDA',c:'#633806'}];
 const OP_KLEUREN=['#534AB7','#1D9E75','#185FA5','#854F0B','#A32D2D'];
 
@@ -686,16 +686,18 @@ function tryLogin(){
   const naam=document.getElementById('inp-naam').value.trim();
   const code=document.getElementById('inp-code').value.trim();
   document.getElementById('login-error').classList.remove('show');
-  if(loginRole==='admin'){
-    if(naam.toLowerCase()==='admin'&&code===ADMIN_CODE){show('screen-admin');renderAdminOverzicht();return;}
-    document.getElementById('login-error').classList.add('show');return;
+
+  if(loginRole==='admin'||loginRole==='docent'){
+    // Firebase Authentication voor admin en docenten
+    if(window._firebaseLogin){
+      window._firebaseLogin(naam, code, loginRole);
+    } else {
+      document.getElementById('login-error').classList.add('show');
+    }
+    return;
   }
-  if(loginRole==='docent'){
-    const doc=docenten.find(d=>d.naam.toLowerCase()===naam.toLowerCase()&&d.code===code);
-    if(doc){currentDocent=doc;loadDocentView(doc);show('screen-docent');return;}
-    document.getElementById('login-error').classList.add('show');return;
-  }
-  // student: zoek in alle docenten
+
+  // Studenten: lokale check zoals voorheen
   for(const doc of docenten){
     const s=doc.studenten.find(s=>s.name.toLowerCase()===naam.toLowerCase()&&s.code===code);
     if(s){currentStudent=s;currentDocent=doc;loadStudentView(s,doc);show('screen-student');return;}
@@ -1650,6 +1652,7 @@ window.currentDocent = null;
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAzuION0_MSzvf010DiO1pZKrHWQLswop4",
@@ -1662,17 +1665,15 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 const REF = doc(db, 'steamtracker', 'appdata');
 
-// ── Firestore ondersteunt geen nested arrays ──
-// Oplossing: sla voortgang op als JSON string, zet terug bij laden
-
+// ── Serialisatie (nested arrays -> JSON string) ──
 function serializeDocenten(docenten) {
   return docenten.map(d => ({
     ...d,
     studenten: d.studenten.map(s => ({
       ...s,
-      // Voortgang: array van arrays -> JSON string
       voortgang: JSON.stringify(s.voortgang || {}),
       datums: JSON.stringify(s.datums || {}),
       archief: JSON.stringify(s.archief || [])
@@ -1720,7 +1721,6 @@ async function laadData() {
       const d = snap.data();
       if (d.docenten && d.docenten.length) {
         window.docenten = deserializeDocenten(d.docenten);
-        console.log('✓ Docenten geladen:', d.docenten.length);
       }
       if (d.bibliotheek) window.bibliotheek = d.bibliotheek;
       if (d.nextDocentId) window.nextDocentId = d.nextDocentId;
@@ -1732,6 +1732,60 @@ async function laadData() {
     console.error('✗ Laden mislukt:', e.message);
   }
 }
+
+// ── Firebase Authentication voor admin en docenten ──
+window._firebaseLogin = async function(email, password, role) {
+  const errEl = document.getElementById('login-error');
+  const btn = document.querySelector('.login-btn');
+  if(btn) { btn.textContent = 'Bezig...'; btn.disabled = true; }
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Controleer of het email overeenkomt met admin
+    if(role === 'admin') {
+      window.show('screen-admin');
+      window.renderAdminOverzicht();
+    } else {
+      // Docent: zoek de bijpassende docent op email (gebruik email prefix als naam match)
+      // Of zoek op basis van Firebase email -> match met docent in data
+      const emailLower = email.toLowerCase();
+      // Match op email of op naam (voor bestaande docenten)
+      let doc = window.docenten.find(d =>
+        d.email === emailLower ||
+        d.naam.toLowerCase() === emailLower.split('@')[0].toLowerCase()
+      );
+      if(!doc && window.docenten.length > 0) {
+        // Fallback: eerste docent die geen email heeft (legacy)
+        doc = window.docenten.find(d => !d.email);
+      }
+      if(doc) {
+        // Sla email op bij docent voor volgende keer
+        doc.email = emailLower;
+        window.currentDocent = doc;
+        window.loadDocentView(doc);
+        window.show('screen-docent');
+      } else {
+        errEl.textContent = 'Geen bijpassende docent gevonden in het systeem.';
+        errEl.classList.add('show');
+      }
+    }
+  } catch(e) {
+    console.error('Login fout:', e.code);
+    errEl.textContent = 'E-mailadres of wachtwoord klopt niet.';
+    errEl.classList.add('show');
+  } finally {
+    if(btn) { btn.textContent = 'Inloggen'; btn.disabled = false; }
+  }
+};
+
+// ── Uitloggen ook via Firebase ──
+const origLogout = window.logout;
+window.logout = function() {
+  signOut(auth).catch(e => console.log('Signout error:', e));
+  if(origLogout) origLogout();
+};
 
 // ── Start ──
 async function initApp() {
